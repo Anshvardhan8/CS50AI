@@ -1,11 +1,9 @@
-import os
-import sys
-
 import cv2
 import numpy as np
+import os
+import sys
 import tensorflow as tf
-from keras.layers import *
-from keras.models import *
+
 from sklearn.model_selection import train_test_split
 
 EPOCHS = 10
@@ -37,7 +35,7 @@ def main():
     model.fit(x_train, y_train, epochs=EPOCHS)
 
     # Evaluate neural network performance
-    model.evaluate(x_test, y_test, verbose=2)
+    model.evaluate(x_test,  y_test, verbose=2)
 
     # Save model to file
     if len(sys.argv) == 3:
@@ -60,21 +58,36 @@ def load_data(data_dir):
     be a list of integer labels, representing the categories for each of the
     corresponding `images`.
     """
-    data = []
+    # img = cv.imread('messi5.jpg')
+    if not data_dir in os.listdir(os.getcwd()):
+        raise Exception("Wrong directory path")
+    
+    if not os.path.isdir(data_dir):
+        raise Exception("path is not a directory")
+    
+    images = list()
+    labels = list()
 
-    for dirpath, _, filenames in os.walk(data_dir):
-        for filename in filenames:
-            image = cv2.imread(os.path.join(dirpath, filename))
-            resized = cv2.resize(image, (IMG_WIDTH, IMG_HEIGHT))
+    for i in range(NUM_CATEGORIES):
+        if f"{i}" not in os.listdir(data_dir):
+            raise Exception(f"Directory Missing : {i}")
+        sign_dir = os.path.join(data_dir ,f"{i}")
+        for image in os.listdir(sign_dir):
+            try:
+                image_path = os.path.join(sign_dir , image)
+                img = cv2.imread(os.path.join(image_path))
+                resized_img = cv2.resize(img , (IMG_WIDTH , IMG_HEIGHT))
+                resized_img = resized_img / 255.0
+                images.append(resized_img)
+                labels.append(i)
+            except:
+                raise Exception(f"Image not loadable : {os.path.join(sign_dir , image)}")
+            
 
-            label = int(os.path.basename(dirpath))
+    return (images , labels)
 
-            data.append({"image": resized, "label": label})
 
-    images = [row["image"] for row in data]
-    labels = [row["label"] for row in data]
-
-    return images, labels
+    
 
 
 def get_model():
@@ -83,34 +96,39 @@ def get_model():
     `input_shape` of the first layer is `(IMG_WIDTH, IMG_HEIGHT, 3)`.
     The output layer should have `NUM_CATEGORIES` units, one for each category.
     """
-    # Create  a convolutional neural network
-    model = Sequential(
-        [
-            # Convolutional layer 1
-            Conv2D(
-                200, (7, 7), activation="relu", input_shape=(IMG_WIDTH, IMG_HEIGHT, 3)
-            ),
-            # Max-pooling layer 1
-            MaxPooling2D(pool_size=(2, 2)),
-            # Convolutional layer 2
-            Conv2D(250, (4, 4), activation="relu"),
-            # Max-pooling layer 2
-            MaxPooling2D(pool_size=(2, 2)),
-            # Flatten units
-            Flatten(),
-            # Add a hidden layer with dropout
-            Dense(400, activation="relu"),
-            # Add a 50% dropout
-            Dropout(0.5),
-            # Add an output layer with output units for all labels
-            Dense(NUM_CATEGORIES, activation="softmax"),
-        ]
-    )
+    # Create a convolutional neural network
+    NoOfFilters = 32
+    Kernel = (3, 3)
+    activation = "relu"
+    image_shape = (IMG_WIDTH, IMG_HEIGHT, 3)
+    pool = (2,2)
+    
+    model = tf.keras.models.Sequential([
 
-    model.summary()
+        # Convolutional layer. Learn 32 filters using a 3x3 kernel
+        tf.keras.layers.Conv2D(
+            32, (3, 3), activation="relu", input_shape=(IMG_WIDTH, IMG_HEIGHT, 3)
+        ),
 
+        # Max-pooling layer, using 2x2 pool size
+        tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
+
+        # Flatten units
+        tf.keras.layers.Flatten(),
+
+        # Add a hidden layer with dropout
+        tf.keras.layers.Dense(128, activation="relu"),
+        tf.keras.layers.Dropout(0.5),
+
+        # Add an output layer with output units for all categories
+        tf.keras.layers.Dense(NUM_CATEGORIES, activation="softmax")
+    ])
+
+    # compile neural network
     model.compile(
-        optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"]
+        optimizer="adam",
+        loss="categorical_crossentropy",
+        metrics=["accuracy"]
     )
 
     return model
@@ -118,3 +136,4 @@ def get_model():
 
 if __name__ == "__main__":
     main()
+
